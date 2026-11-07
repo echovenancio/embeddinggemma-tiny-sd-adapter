@@ -1,0 +1,11 @@
+# Instale primeiro torch/torchvision adequados à GPU pelo guia oficial do PyTorch.
+torch>=2.6
+torchvision>=0.21
+accelerate==1.15.0
+diffusers==0.42.1
+huggingface-hub==2.4.0
+Pillow==13.0.0
+pyarrow==26.0.0
+safetensors==0.8.0
+sentence-transformers==6.2.0
+transformers==5.22.1

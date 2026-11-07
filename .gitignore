@@ -1,0 +1,10 @@
+# Lista explícita dos únicos arquivos que podem ser versionados.
+# Resultados, dados, pesos, ambientes e credenciais ficam ignorados por padrão.
+/*
+!/.gitignore
+!/README.md
+!/requirements.txt
+!/experimento.py
+!/experimento_v2.py
+!/experimento_v3.py
+!/gerar_v3.py
