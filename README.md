@@ -1,82 +1,95 @@
-# EmbeddingGemma 2 + Tiny-SD: adaptador experimental
+# EmbeddingGemma 2 → Tiny-SD
 
-Código de experimentos que convertem um embedding global do EmbeddingGemma 2 em condicionamento para o modelo de difusão Tiny-SD. O codificador e o gerador ficam congelados; o treinamento ajusta apenas o adaptador.
+Experimentos para usar um embedding global do **EmbeddingGemma 2** como condicionamento de texto de um modelo de difusão **Tiny-SD**. Um adaptador aprende a converter o vetor do prompt em representações que o gerador consiga usar.
 
-O repositório contém apenas código e documentação de uso. Pesos, checkpoints, datasets, embeddings, legendas extraídas, resultados, imagens, relatórios, logs e ambientes locais não são distribuídos. A lista de arquivos permitidos está definida no `.gitignore`.
+O projeto é uma prova de conceito: uma representação mais próxima da saída do CLIP não garante que a imagem preserve todos os objetos, atributos e relações descritos no prompt.
 
-## Arquivos
+## Como funciona
 
-- `experimento.py`: piloto com frases sintéticas e regressão ridge.
-- `experimento_v2.py`: mais frases sintéticas e regularização escolhida em validação.
-- `experimento_v3.py`: legendas COCO, projeção linear, PCA e MLP residual.
-- `gerar_v3.py`: inferência com um checkpoint v3 treinado localmente.
-- `requirements.txt`: dependências Python, sem URLs locais ou credenciais.
+```text
+Prompt → EmbeddingGemma 2 → adaptador → Tiny-SD → imagem
+                                 ↑
+                 supervisionado pelo CLIP durante o treino
+```
 
-## Ambiente
+Na versão atual, o adaptador combina uma projeção linear, uma base PCA e uma MLP residual. EmbeddingGemma, CLIP e Tiny-SD permanecem congelados. Após o treino, a geração avulsa não carrega o CLIP: ela reutiliza um condicionamento negativo vazio salvo no checkpoint.
 
-Use Python 3.13 e uma GPU compatível com PyTorch. Os scripts usam a interface `torch.cuda`, também usada pelo backend ROCm da AMD. A primeira geração pode levar mais tempo por causa da preparação de kernels.
+## Estrutura
+
+```text
+src/embedding_adapter/  Treinamento e geração da versão atual
+experiments/            Experimentos históricos v1 e v2
+docs/                   Método, partições e reprodução
+tests/                  Verificações locais do fluxo
+pyproject.toml          Pacote, dependências e comandos
+LICENSE                 Licença MIT do código
+```
+
+O repositório contém código e documentação. Pesos, checkpoints, datasets, embeddings, imagens e resultados são obtidos ou gerados localmente e ficam fora do Git.
+
+## Instalação
+
+Requer Python 3.13 ou superior e uma GPU acessível pelo PyTorch. A execução foi testada com uma GPU AMD e ROCm; os scripts usam a interface `torch.cuda`, também utilizada pelo PyTorch com ROCm.
 
 ```bash
 python3.13 -m venv .venv
 source .venv/bin/activate
 ```
 
-Instale primeiro PyTorch e torchvision para sua GPU seguindo o [guia oficial do PyTorch](https://pytorch.org/get-started/locally/). Em seguida:
+Instale primeiro PyTorch e torchvision adequados à sua GPU, seguindo o [guia oficial do PyTorch](https://pytorch.org/get-started/locally/). Depois, instale o projeto:
 
 ```bash
-python -m pip install -r requirements.txt
+python -m pip install -e .
 ```
 
-O experimento foi executado com PyTorch 2.11.0 e ROCm. A instalação de CUDA ou ROCm depende da máquina. O arquivo de dependências não fixa uma distribuição de GPU específica.
+## Treinar
 
-## Treinar a versão mais recente
-
-Execute os comandos na raiz do repositório:
+Execute na raiz do repositório:
 
 ```bash
-python experimento_v3.py --fit-only
+embedding-adapter-train --fit-only
 ```
 
-Esse comando prepara os dados, treina o adaptador e grava as métricas. As comparações com v1 e v2 são opcionais e só são feitas se seus checkpoints existirem localmente. Não é necessário baixar ou executar as versões anteriores para treinar a v3.
-
-Para também gerar a comparação visual:
+O comando prepara os dados, treina o adaptador e calcula as métricas. Para também gerar imagens de comparação:
 
 ```bash
-python experimento_v3.py --images 6
+embedding-adapter-train --images 6
 ```
 
-Na primeira execução, o código baixa automaticamente modelos e legendas de fontes públicas:
+Na primeira execução, são baixados modelos do Hugging Face e as legendas e metadados do COCO2017. As imagens do COCO não são baixadas. Os arquivos produzidos ficam em `resultados_v3/` e são ignorados pelo Git.
 
-- [`google/embeddinggemma-2`](https://huggingface.co/google/embeddinggemma-2);
-- [`segmind/tiny-sd`](https://huggingface.co/segmind/tiny-sd);
-- [`phiyodr/coco2017`](https://huggingface.co/datasets/phiyodr/coco2017), apenas os metadados e as legendas; as imagens COCO não são baixadas.
+## Gerar uma imagem
 
-Esses downloads ficam no cache local do Hugging Face. Os artefatos de treino ficam em `resultados_v3/`, incluindo `adaptador.pt`, `dataset.json`, `representacoes.pt`, métricas e imagens. Todos ficam fora do Git.
-
-## Gerar com o adaptador
-
-Treine a v3 antes de usar a inferência. Nenhum checkpoint é incluído neste repositório.
+Depois de treinar a versão atual:
 
 ```bash
-python gerar_v3.py 'a red bicycle parked beside a brick wall' --seed 1002 --output resultados_v3/minha_imagem.png
+embedding-adapter-generate 'a red bicycle parked beside a brick wall' \
+  --seed 1002 --output resultados_v3/minha_imagem.png
 ```
 
-A geração usa EmbeddingGemma 2 + adaptador. O CLIP original não é carregado na pipeline de inferência; seu condicionamento negativo vazio, calculado durante o preparo, é reutilizado a partir do checkpoint. O CLIP original é necessário durante o treinamento para fornecer os alvos.
+O comando espera o checkpoint local em `resultados_v3/adaptador.pt`. Nenhum checkpoint é distribuído neste repositório.
 
-## Método e avaliação
+## Reproduzir as versões históricas
 
-A v3 usa 16.000 legendas de treino, 512 de validação e 256 de teste, com uma legenda por imagem. As partições não compartilham IDs de imagem nem legendas normalizadas idênticas. A revisão do dataset utilizada é registrada localmente em `dataset.json`.
+A v2 usa o checkpoint local produzido pela v1. Para executar as duas versões na ordem:
 
-O alvo CLIP é uma sequência de 77 vetores com 768 valores cada. Uma PCA ajustada somente no treino reduz esse alvo para 192 componentes. Uma projeção ridge prevê os coeficientes; uma MLP residual com duas camadas ocultas de 1.024 unidades aprende uma correção. A regularização e a época são escolhidas com a validação.
+```bash
+python experiments/v1.py
+python experiments/v2.py
+```
 
-A métrica principal é o erro quadrático médio de reconstrução dos estados CLIP. Ela não equivale a qualidade visual: objetos, cores, materiais e relações podem ser perdidos mesmo quando o erro diminui. Este é um protótipo experimental.
+A versão atual funciona por conta própria. Se os checkpoints v1 e v2 existirem localmente, o treinamento também os inclui na avaliação. Veja [método e reprodução](docs/experiments.md) para detalhes sobre dados, métricas e caches.
 
-## Reexecutar ou mudar a configuração
+## Testes
 
-Os scripts reutilizam representações e checkpoints existentes e pulam imagens já geradas. Para um novo experimento com outra configuração, use outro diretório de trabalho com os scripts, ou preserve os resultados atuais e altere o diretório `OUT` antes de executar. Não misture checkpoints de configurações diferentes.
+Com o projeto e suas dependências instalados:
 
-Para reproduzir a sequência histórica completa, execute `experimento.py`, depois `experimento_v2.py` e por fim `experimento_v3.py`. A v2 depende do checkpoint local da v1.
+```bash
+python -m unittest discover -s tests -v
+```
 
-## Conteúdo compartilhável
+Os testes não baixam modelos, datasets ou pesos.
 
-O histórico inicial foi criado do zero a partir dos sete arquivos listados no `.gitignore`. Não contém o histórico do ambiente de trabalho, caminhos pessoais, configurações de autenticação, dados de treino ou modelos. Para adicionar um novo arquivo ao repositório, é necessário incluí-lo explicitamente na lista permitida do `.gitignore`.
+## Licença
+
+O código deste repositório está disponível sob a [licença MIT](LICENSE). Os modelos e o dataset externos possuem termos próprios e são obtidos separadamente.

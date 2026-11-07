@@ -19,7 +19,6 @@ from diffusers import DiffusionPipeline
 from PIL import Image, ImageDraw
 
 OUT = Path('resultados_v3')
-OUT.mkdir(exist_ok=True)
 MODEL = 'segmind/tiny-sd'
 GEMMA = 'google/embeddinggemma-2'
 SOURCE = 'phiyodr/coco2017'
@@ -302,6 +301,7 @@ def main():
     if not torch.cuda.is_available():
         raise RuntimeError('GPU indisponível.')
     print('GPU:',torch.cuda.get_device_name(0),flush=True)
+    OUT.mkdir(parents=True, exist_ok=True)
     dataset = make_dataset()
     cache = collect(dataset)
     cp = train(dataset,cache,args)

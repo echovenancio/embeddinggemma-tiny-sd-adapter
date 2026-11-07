@@ -1,10 +1,24 @@
-# Lista explícita dos únicos arquivos que podem ser versionados.
-# Resultados, dados, pesos, ambientes e credenciais ficam ignorados por padrão.
+# Somente arquivos explicitamente permitidos podem ser adicionados ao Git.
+# Assim, pesos, dados, credenciais, resultados e novos arquivos ficam fora por padrão.
 /*
 !/.gitignore
+!/LICENSE
 !/README.md
-!/requirements.txt
-!/experimento.py
-!/experimento_v2.py
-!/experimento_v3.py
-!/gerar_v3.py
+!/pyproject.toml
+!/src/
+/src/*
+!/src/embedding_adapter/
+/src/embedding_adapter/*
+!/src/embedding_adapter/__init__.py
+!/src/embedding_adapter/train.py
+!/src/embedding_adapter/generate.py
+!/experiments/
+/experiments/*
+!/experiments/v1.py
+!/experiments/v2.py
+!/docs/
+/docs/*
+!/docs/experiments.md
+!/tests/
+/tests/*
+!/tests/test_workflow.py

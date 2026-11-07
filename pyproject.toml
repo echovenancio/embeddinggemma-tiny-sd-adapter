@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "embedding-tiny-adapter"
+version = "0.1.0"
+description = "Experimentos com EmbeddingGemma 2 como condicionamento de texto para Tiny-SD"
+readme = "README.md"
+requires-python = ">=3.13"
+license = "MIT"
+dependencies = [
+    "torch>=2.6",
+    "torchvision>=0.21",
+    "accelerate==1.15.0",
+    "diffusers==0.42.1",
+    "huggingface-hub==2.4.0",
+    "Pillow==13.0.0",
+    "pyarrow==26.0.0",
+    "safetensors==0.8.0",
+    "sentence-transformers==6.2.0",
+    "transformers==5.22.1",
+]
+
+[project.scripts]
+embedding-adapter-train = "embedding_adapter.train:main"
+embedding-adapter-generate = "embedding_adapter.generate:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]

@@ -7,7 +7,7 @@ from pathlib import Path
 import torch
 from diffusers import DiffusionPipeline
 from sentence_transformers import SentenceTransformer
-from experimento_v3 import GEMMA, MODEL, predict
+from .train import GEMMA, MODEL, predict
 
 
 def main():
