@@ -1,95 +1,74 @@
-# EmbeddingGemma 2 → Tiny-SD
+# EmbeddingGemma 2 + Tiny-SD
 
-Experimentos para usar um embedding global do **EmbeddingGemma 2** como condicionamento de texto de um modelo de difusão **Tiny-SD**. Um adaptador aprende a converter o vetor do prompt em representações que o gerador consiga usar.
-
-O projeto é uma prova de conceito: uma representação mais próxima da saída do CLIP não garante que a imagem preserve todos os objetos, atributos e relações descritos no prompt.
-
-## Como funciona
+Experimento para usar um embedding global do [EmbeddingGemma 2](https://huggingface.co/google/embeddinggemma-2) como condicionamento de texto para o [Tiny-SD](https://huggingface.co/segmind/tiny-sd). Um adaptador aprende a aproximar as representações do CLIP usado pelo gerador.
 
 ```text
-Prompt → EmbeddingGemma 2 → adaptador → Tiny-SD → imagem
+prompt → EmbeddingGemma 2 → adaptador → Tiny-SD → imagem
                                  ↑
-                 supervisionado pelo CLIP durante o treino
+                      CLIP original (treino)
 ```
 
-Na versão atual, o adaptador combina uma projeção linear, uma base PCA e uma MLP residual. EmbeddingGemma, CLIP e Tiny-SD permanecem congelados. Após o treino, a geração avulsa não carrega o CLIP: ela reutiliza um condicionamento negativo vazio salvo no checkpoint.
-
-## Estrutura
-
-```text
-src/embedding_adapter/  Treinamento e geração da versão atual
-experiments/            Experimentos históricos v1 e v2
-docs/                   Método, partições e reprodução
-tests/                  Verificações locais do fluxo
-pyproject.toml          Pacote, dependências e comandos
-LICENSE                 Licença MIT do código
-```
-
-O repositório contém código e documentação. Pesos, checkpoints, datasets, embeddings, imagens e resultados são obtidos ou gerados localmente e ficam fora do Git.
+O adaptador combina projeção ridge, PCA e uma MLP residual. O EmbeddingGemma, o CLIP e o Tiny-SD ficam congelados. A métrica de treino compara representações: um erro menor não garante que a imagem preserve todos os detalhes do prompt.
 
 ## Instalação
 
-Requer Python 3.13 ou superior e uma GPU acessível pelo PyTorch. A execução foi testada com uma GPU AMD e ROCm; os scripts usam a interface `torch.cuda`, também utilizada pelo PyTorch com ROCm.
+Requer Python 3.13 ou superior e uma GPU compatível com PyTorch. O experimento foi executado com ROCm; os scripts usam a interface `torch.cuda`, compartilhada pelo PyTorch com CUDA e ROCm.
 
 ```bash
 python3.13 -m venv .venv
 source .venv/bin/activate
 ```
 
-Instale primeiro PyTorch e torchvision adequados à sua GPU, seguindo o [guia oficial do PyTorch](https://pytorch.org/get-started/locally/). Depois, instale o projeto:
+Instale [PyTorch e torchvision](https://pytorch.org/get-started/locally/) para sua GPU e depois instale o projeto:
 
 ```bash
 python -m pip install -e .
 ```
 
-## Treinar
+## Treinamento
 
-Execute na raiz do repositório:
+Na raiz do repositório:
 
 ```bash
 embedding-adapter-train --fit-only
 ```
 
-O comando prepara os dados, treina o adaptador e calcula as métricas. Para também gerar imagens de comparação:
+O comando baixa os modelos e as legendas do [COCO2017](https://huggingface.co/datasets/phiyodr/coco2017), prepara os dados, treina o adaptador e calcula métricas. As imagens do COCO não são baixadas. Para gerar também as comparações visuais:
 
 ```bash
 embedding-adapter-train --images 6
 ```
 
-Na primeira execução, são baixados modelos do Hugging Face e as legendas e metadados do COCO2017. As imagens do COCO não são baixadas. Os arquivos produzidos ficam em `resultados_v3/` e são ignorados pelo Git.
+Os resultados e checkpoints ficam em `resultados_v3/`. Como o código reutiliza caches e imagens existentes, use um diretório de trabalho separado para uma configuração nova. Consulte [método e reprodução](docs/experiments.md) para detalhes sobre os dados, as partições e os caches.
 
-## Gerar uma imagem
+## Geração
 
-Depois de treinar a versão atual:
+Após o treinamento:
 
 ```bash
 embedding-adapter-generate 'a red bicycle parked beside a brick wall' \
   --seed 1002 --output resultados_v3/minha_imagem.png
 ```
 
-O comando espera o checkpoint local em `resultados_v3/adaptador.pt`. Nenhum checkpoint é distribuído neste repositório.
+O comando usa `resultados_v3/adaptador.pt`. O CLIP original não é carregado durante a geração: o checkpoint contém o condicionamento negativo vazio calculado no preparo.
 
-## Reproduzir as versões históricas
+## Estrutura
 
-A v2 usa o checkpoint local produzido pela v1. Para executar as duas versões na ordem:
-
-```bash
-python experiments/v1.py
-python experiments/v2.py
+```text
+src/embedding_adapter/  Treinamento e geração
+experiments/            Versões anteriores do experimento
+docs/                   Método e reprodução
+tests/                  Testes sem GPU ou downloads
 ```
 
-A versão atual funciona por conta própria. Se os checkpoints v1 e v2 existirem localmente, o treinamento também os inclui na avaliação. Veja [método e reprodução](docs/experiments.md) para detalhes sobre dados, métricas e caches.
+As versões anteriores podem ser executadas com `python experiments/v1.py` e depois `python experiments/v2.py`; a v2 depende do checkpoint da v1. A versão atual não depende deles.
 
 ## Testes
-
-Com o projeto e suas dependências instalados:
 
 ```bash
 python -m unittest discover -s tests -v
 ```
 
-Os testes não baixam modelos, datasets ou pesos.
-
 ## Licença
 
-O código deste repositório está disponível sob a [licença MIT](LICENSE). Os modelos e o dataset externos possuem termos próprios e são obtidos separadamente.
+O código está sob a [licença MIT](LICENSE). Os modelos e o dataset externos têm termos próprios.
